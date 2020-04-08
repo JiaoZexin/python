@@ -1,0 +1,1766 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1"/>
+    <meta name="renderer" content="webkit"/>
+    <meta name="author" content="长佩文学"/>
+    <meta name="copyright" content="长佩文学"/>
+    <meta name="description" content="长佩为你提供好看的耽美小说,BL小说,原创小说,同人小说,现代都市恋爱,古风虐心大作,精彩竞技冒险,灵异科幻架空,更懂你的女性向阅读交流平台">
+    <meta name="Keywords" content="耽美,耽美小说,BL小说,纯爱小说,CP,长佩,公子长佩,网络小说,原创网络小说,短篇小说,免费小说,腐女,腐向,同人,女性向,女频">
+    <meta name="applicable-device" content="pc">
+    <meta name="updatetime" content="2019-11-19 22:27:20">
+    <title>现代_长佩文学 - 用好故事传递爱</title>
+    <link rel="stylesheet" href="//at.alicdn.com/t/font_976080_47clhehmrhe.css"/>
+    <link rel="stylesheet" href="/layui/css/layui.css">
+    <link rel="stylesheet" href="/css/mythink.css?v=20191115">
+    <link rel="stylesheet" href="/pc/css/common.css?v=2019111502">
+    <link rel="stylesheet" href="/pc/css/home_type.css?v=20191115">
+
+    <script src="/js/jquery-1.10.2.min.js"></script>
+    <script type="text/javascript" charset="utf-8" src="//g.alicdn.com/sd/ncpc/nc.js?t=2019111910"></script>
+    <script type="text/javascript" charset="utf-8" src="//at.alicdn.com/t/font_976080_85lw3elya6s.js?t=20190821"></script>
+    <script type="text/javascript" src="/layui/layui.js"></script>
+    <script type="text/javascript" src="/js/vue.2.2.0.min.js"></script>
+    <script type="text/javascript" src="/js/axios.min.js"></script>
+    <script type="text/javascript" src="/pc/js/common.js?v=20191115"></script>
+    <script>
+        var layer,
+            form,
+            loginBox,
+            userInfo,
+            loading,
+            nc;
+
+        var ncData = {};
+        var NC_Opt = {
+            renderTo: "#ncContainer",
+            appkey: 'FFFF0N00000000008205',
+            scene: "nc_register",
+            token: "d1942431653f70f6cfd175217adcd852",
+            is_Opt: 0,
+            isEnabled: true,
+            timeout: 3000,
+            times:5,
+            callback: function (data) {
+                ncData = data;
+                $('#loginBtn').removeClass('layui-disabled').prop('disabled', false);
+            }
+        }
+
+        layui.use(['layer', 'element', 'form'], function () {
+            layer = layui.layer;
+            form = layui.form;
+            form.on('select(nationCode)', function(data){
+                $(data.othis).find('input').val('+' + data.value);
+                ncode = data.value;
+            });
+
+            form.on('submit(login)', function(data){
+                loading = layer.load(2);
+                if($('.checkIt').attr('logintype') == 'tel'){
+                    $('input.e').attr('name', null)
+                }else{
+                    $('input.tel').attr('name', null)
+                }
+                var postData = $('#loginForm').serializeArray();
+                postData.push({name: 'nc_data', value: JSON.stringify(ncData)});
+                $.ajax({
+                    url: '/login/userLogin',
+                    type: 'POST',
+                    dataType: 'json',
+                    data: postData,
+                }).done(function (res) {
+                    if (res.code == 200) {
+                        if (res.msg) layer.msg(res.msg);
+                        layer.close(loginBox);
+                        userInfo = getUserInfo(false);
+                        afterLogin(userInfo);
+                        setUserStorage(userInfo);
+                    } else {
+                        reloadCaptcha();
+                        if (res.code == 9996) {
+                            setUserStorage({});
+                        }
+                        layer.alert(res.msg);
+                    }
+                }).fail(function () {
+                    console.log("error");
+                }).always(function () {
+                    layer.close(loading);
+                    $('input.e').attr('name', 'username');
+                    $('input.tel').attr('name', 'username');
+                });
+                return false;
+            });
+        });
+        $.ajaxSetup({
+            dataType: 'JSON'
+        });
+
+        function commonCallBack(res, cd) {
+            if (res.code == 200) {
+                if (res.msg) layer.msg(res.msg);
+                if (cd && typeof cd == 'function') {
+                    cd();
+                }
+            } else {
+                if (res.code == 9996) {
+                    setUserStorage({});
+                }
+                layer.alert(res.msg);
+            }
+        }
+
+        function loginModel() {
+            firstOpenLoginModel();
+            loginBox = layer.open({
+                type: 1,
+                title: '用户登录',
+                shadeClose: false,
+                area: ['400px', '450px'],
+                content: $('#loginBox'),
+                success: function () {
+                    reloadCaptcha();
+                }
+            })
+        }
+
+        var LoginModelMark = false;
+        function firstOpenLoginModel() {
+            if (LoginModelMark) return;
+
+            $.ajax({
+                url: '/login/nationCode',
+                type: 'get',
+                dataType: 'JSON',
+            }).done(function (res){
+                if(res.code != 200) return false;
+                $.each(res.data.common, function(index, obj){
+                    $('select[name="ncode"]').append('<option value="'+ obj.code +'">'+ obj.nation +'</option>')
+                })
+                $.each(res.data.all, function(index, obj){
+                    $('select[name="ncode"]').append('<option value="'+ obj.code +'">'+ obj.nation +'</option>')
+                })
+                form.render('select');
+                $('select[name="ncode"] + div').find('input').val('+' + $('select[name="ncode"]').val());
+            }).fail(function (){
+                layer.alert('系统繁忙！');
+            })
+
+            LoginModelMark = true;
+            nc = new noCaptcha(NC_Opt)
+        }
+
+        $(function () {
+            userInfo = getUserInfo(false);
+            afterLogin(userInfo);
+        })
+
+        // 搜索
+        function cpTopSearchHandle(isClick) {
+            if (!isClick && event.keyCode != 13) {
+                return;
+            }
+            var keyword = $('#cpTopSearchInput').val();
+            if ('' == keyword) {
+                return;
+            }
+            window.location.href = "/novel/search/module/novel/keyword/" + encodeURIComponent(keyword);
+        }
+        function goRecharge() {
+            if(userInfo.show_uid) {
+                window.location.href = "/Usercharge/recharge";
+            } else {
+                layer.alert('请先登录', function () {
+                    loginModel();
+                })
+            }
+        }
+        //切换登录方式
+        function checklogintype(this_) {
+            if($('.loginBox').hasClass('login_tel')){
+                $('.loginBox').removeClass('login_tel').addClass('login_e');
+                $(this_).find('.loginType').html('手机号登录');
+            }else{
+                $('.loginBox').removeClass('login_e').addClass('login_tel');
+                $(this_).find('.loginType').html('邮箱登录');
+            }
+        }
+        //注册
+        function register() {
+            var redirectUrl = encodeURIComponent(window.location.pathname + window.location.search);
+            window.location.href = '/register?redirectUrl=' + redirectUrl;
+        }
+        //三方登录
+        function tripartiteLogin(url) {
+            var redirectUrl = encodeURIComponent(window.location.pathname + window.location.search);
+            window.location.href = url + '?redirectUrl=' + redirectUrl;
+        }
+        var hasSearch = false;
+        function searchHandle(world) {
+            if(!world) {
+                $('.inputListenerBox').hide();
+                return false;
+            };
+            $('.searchWord .world').text(world);
+            $.ajax({
+                url: '/es/suggest',
+                type: 'get',
+                data: {k: world},
+                dataType: 'json',
+            }).done(function (res) {  
+                if(res.code == 200){
+                    if(res.data.novel.length == 0 && res.data.author.length == 0){
+                        $('.inputListenerBox').hide().siblings('.PageContent').show();
+                    }else{
+                        $('.inputListenerBox').show().siblings('.PageContent').hide();
+                    }
+                    if(res.data.author.length > 0){
+                        var list = '';
+                        $.each(res.data.author, function(i,val){
+                            list += '<li score="'+val.score +'" uid="'+val.uid +'" id_="'+val.id 
+                                    +'" onclick="clickInputListener(this)" kname="'+ val.author_name +'"><div class="oneList">' +val.author_name + '</div></li>';
+                        })
+                        $('.inputListenerBox .searchAuthorBox .listBox').empty().append(list);
+                        $('.inputListenerBox .searchAuthorBox').show();
+                    }else{
+                        $('.inputListenerBox .searchAuthorBox').hide();
+                    }
+                    if(res.data.novel.length > 0){
+                        var list = '';
+                        $.each(res.data.novel, function(i,val){
+                            list += '<li score="'+val.score +'" id_="'+val.id+'" onclick="clickInputListener(this)" kname="'+ val.novel_name +'">';
+                            list +=     '<div class="oneList">';
+                            list +=         '<span class="novelName">'+ val.novel_name +'</span>&nbsp;&nbsp;&nbsp;';
+                            list +=         '<span class="author">'+ val.novel_author +'</span>';
+                            list +=     '</div>';
+                            list += '</li>';
+                        })
+                        $('.inputListenerBox .searchNovelBox .listBox').empty().append(list);
+                        $('.inputListenerBox .searchNovelBox').show();
+                    }else{
+                        $('.inputListenerBox .searchNovelBox').hide();
+                    }
+                }else{
+                    $('.inputListenerBox').hide();
+                }
+            }).fail(function () {  
+                $('.inputListenerBox').hide();
+            })
+        }
+        /**
+         * 搜索提示
+         * @param {*} world 搜索文字
+         */
+         function inputListener (world){
+            keyword = world;
+            if(!hasSearch){
+                hasSearch = true;
+                searchHandle(world);
+            }else{
+                setTimeout(function(){
+                    if(world === keyword){
+                        if(!world) {
+                            $('.inputListenerBox').hide();
+                            return false;
+                        };
+                        $('.searchWord .world').text(world);
+                        $.ajax({
+                            url: '/es/suggest',
+                            type: 'get',
+                            data: {k: world},
+                            dataType: 'json',
+                        }).done(function (res) {  
+                            if(res.code == 200){
+                                if(res.data.novel.length == 0 && res.data.author.length == 0){
+                                    $('.inputListenerBox').hide().siblings('.PageContent').show();
+                                }else{
+                                    $('.inputListenerBox').show().siblings('.PageContent').hide();
+                                }
+                                if(res.data.author.length > 0){
+                                    var list = '';
+                                    $.each(res.data.author, function(i,val){
+                                        list += '<li score="'+val.score +'" uid="'+val.uid +'" id_="'+val.id 
+                                                +'" onclick="clickInputListener(this)" kname="'+ val.author_name +'"><div class="oneList">' +val.author_name + '</div></li>';
+                                    })
+                                    $('.inputListenerBox .searchAuthorBox .listBox').empty().append(list);
+                                    $('.inputListenerBox .searchAuthorBox').show();
+                                }else{
+                                    $('.inputListenerBox .searchAuthorBox').hide();
+                                }
+                                if(res.data.novel.length > 0){
+                                    var list = '';
+                                    $.each(res.data.novel, function(i,val){
+                                        list += '<li score="'+val.score +'" id_="'+val.id+'" onclick="clickInputListener(this)" kname="'+ val.novel_name +'">';
+                                        list +=     '<div class="oneList">';
+                                        list +=         '<span class="novelName">'+ val.novel_name +'</span>&nbsp;&nbsp;&nbsp;';
+                                        list +=         '<span class="author">'+ val.novel_author +'</span>';
+                                        list +=     '</div>';
+                                        list += '</li>';
+                                    })
+                                    $('.inputListenerBox .searchNovelBox .listBox').empty().append(list);
+                                    $('.inputListenerBox .searchNovelBox').show();
+                                }else{
+                                    $('.inputListenerBox .searchNovelBox').hide();
+                                }
+                            }else{
+                                $('.inputListenerBox').hide();
+                            }
+                        }).fail(function () {  
+                            $('.inputListenerBox').hide();
+                        })
+                    }else{
+                        $('.inputListenerBox').hide();
+                    }
+                },1000);
+            }
+        }
+
+        //搜索联动_点击
+        function clickInputListener (this_) {  
+            $.ajax({
+                url: '/es/suggestStatistics',
+                type: 'get',
+                dataType: 'json',
+                data: {k: $(this_).attr('kname')},
+            }).done(function (res) {  
+                if(res.code == 200){
+                    var url = $(this_).parents('.listBox').attr('type') == 'novel' ? '/novel-'+ $(this_).attr('id_') +'.html' : '/cpzone/author/id/' + $(this_).attr('id_');
+                    window.location.href = url;
+                }else{
+                    layer.msg(res.msg);
+                }
+            }).fail(function () {  
+                layer.msg('请求失败');
+            })
+        }
+
+        // 刷新
+        function reloadCaptcha() {
+            nc.reload()
+            $('#loginBtn').addClass('layui-disabled').prop('disabled', true);
+        }
+    </script>
+</head>
+<body>
+<div class="cp-header">
+    <div class="cp-main-box">
+        <a href="/" class="cp-logo">
+            <img src="/pc/images/logo.png"/>
+        </a>
+        <div class="cp-header-user" id="cpHeaderUser">
+            <a href="javascript: register()">注册</a>
+            <span></span>
+            <a href="javascript:loginModel();">登录</a>
+        </div>
+        <div class="cp-header-link">
+            <a href="javascript:;" class="cp-app-down">
+                <span>下载APP</span>
+                <span class="cp-app-down-qrcode">
+                    <img src="/pc/images/app_down.png" alt=""/>
+                </span>
+            </a>
+            <a href="javascript:goRecharge();">充值</a>
+        </div>
+        <div class="cp-header-search">
+            <input id="cpTopSearchInput" onkeypress="cpTopSearchHandle(false);" placeholder="可以搜索标题、作者、标签哦！"
+                onkeyup="inputListener($(this).val())"/>
+            <a href="javascript:;" onclick="cpTopSearchHandle(true);" class="iconfont icon-search"></a>
+            <div class="inputListenerBox">
+                <p class="searchWord">正在搜索:“<span class="world"></span>”</p>
+                <div class="searchNovelBox cp-card">
+                    <div class="cp-card-header cp-card-header-bold">
+                        <span class="cp-card-header-line"></span> 
+                        <h3>小说</h3> 
+                    </div>
+                    <ul class="listBox" type="novel"></ul>
+                </div>
+                <div class="searchAuthorBox cp-card">
+                    <div class="cp-card-header cp-card-header-bold">
+                        <span class="cp-card-header-line"></span> 
+                        <h3>作者</h3> 
+                    </div>
+                    <ul class="listBox" type="author"></ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div id="loginBox" class="cp-hidden cp-login-box">
+    <form id="loginForm" class="layui-form" onsubmit="return false;">
+        <div class="layui-form-item login_tel loginBox">
+            <div class="layui-input-inline ncodeBox" style="width: 150px;">
+                <select name="ncode" id="" lay-filter="nationCode"></select>
+            </div>
+            <div class="layui-input-inline nameBox">
+                <input type="text" name="username" placeholder="输入账号" autocomplete="off" class="layui-input tel"
+                       lay-verify="required"/>
+            </div>
+
+        </div>
+
+        <div class="layui-form-item">
+            <div class="layui-input-inline" style="width: 100%;">
+                <input type="password" name="password" placeholder="请输入密码" autocomplete="off" class="layui-input"
+                       lay-verify="required">
+            </div>
+        </div>
+        <div id="ncContainer" class="nc-container"></div>
+                    <input name="zzz" type="hidden" value="login|939f8dd262a4f652332d2bf9c5510bb0">
+        
+        <div class="layui-form-item">
+            <div class="layui-inline">
+                <input type="checkbox" name="remember" value="1" title="记住宝宝" lay-skin="primary" checked>
+            </div>
+            <div class="layui-inline checkIt" style="margin-top: 10px; float: right;cursor: pointer;" onclick="checklogintype(this)" logintype="tel">
+                <span class="loginType">邮箱登录</span>
+            </div>
+        </div>
+        <div class="layui-form-item">
+            <div class="layui-input-inline" style="width: 100%;">
+                <button id="loginBtn" disabled class="layui-btn layui-disabled" style="width: 100%;" lay-submit  lay-filter="login"> 立即登录</button>
+            </div>
+        </div>
+        <div class="cp-over-hidden">
+            <a class="right" href="/register/findpsw">忘记密码</a>
+        </div>
+        <div class="cp-third-login">
+            <div class="cp-third-title">
+                第三方登录
+            </div>
+            <div class="cp-third-list">
+                <a href="javascript:tripartiteLogin('/login/wb');" >
+                    <img src="/pc/images/wb.png" alt="微博登录"/>
+                </a>
+                <a href="javascript:tripartiteLogin('/login/qq');" >
+                    <img src="/pc/images/qq.png" alt="QQ登录"/>
+                </a>
+                <a href="javascript:tripartiteLogin('/login/wx');" >
+                    <img src="/pc/images/wechat.png" alt="微信登录"/>
+                </a>
+            </div>
+        </div>
+    </form>
+</div>    <div class="cp-nav">
+        <div class="cp-main-box">
+                            <a class="cp-nav-item "
+                   href="/home/type/id/3">古代</a>
+                            <a class="cp-nav-item active"
+                   href="/home/type/id/1">现代</a>
+                            <a class="cp-nav-item "
+                   href="/home/type/id/4">幻想</a>
+                            <a class="cp-nav-item "
+                   href="/home/type/id/6">悬疑</a>
+                            <a class="cp-nav-item "
+                   href="/home/type/id/66">短佩</a>
+                            <a class="cp-nav-item "
+                   href="/home/type/id/9">架空</a>
+                            <a class="cp-nav-item "
+                   href="/home/type/id/73">无CP</a>
+                            <a class="cp-nav-item "
+                   href="/home/type/id/17">百合</a>
+                    </div>
+    </div>
+    <div class="cp-main-box" id="vueBox">
+
+
+        <!--  本周强推  -->
+        <div class="cp-card cp-index-vip">
+            <div class="cp-card-header cp-card-header-bold">
+                <i class="iconfont icon-qiangtui"></i>
+                <h3>本周强推</h3>
+                <a href="javascript:;" @click="getRandomRecList('weekrec', 1, 'weekRecList', 'weekRecListDom')" class="random iconfont icon-xingzhuangjiehe">换一换</a>
+            </div>
+            <div class="cp-card-line"></div>
+            <div id="weekRecListDom">
+                <div class="cp-index-vip-list" v-cloak>
+                    <div class="cp-index-vip-item" v-for="(novel, index) in weekRecList" :key="novel.novel_id">
+                        <a class="cp-novel-cover">
+                            <img :src="novel.novel_cover" />
+                        </a>
+                        <div class="left" style="width: 120px;">
+                            <!-- 冻结 -->
+                            <span v-if="2 === novel.novel_status" class="cp-novel-name cp-ellipsis cp-frozen">
+                            <span v-text="novel.novel_name"></span>
+                            <i class="frozenIcon iconfont icon-ban"></i>
+                        </span>
+                            <!-- 锁定 -->
+                            <span v-else-if="novel.novel_clock" class="cp-novel-name cp-ellipsis cp-lock">
+                            <span v-text="novel.novel_name"></span>
+                            <i class="lockIcon icon-lock iconfont"></i>
+                        </span>
+                            <!-- 正常 -->
+                            <a v-else :href="'/novel-' + novel.novel_id + '.html'" class="cp-novel-name cp-ellipsis" v-text="novel.novel_name"></a>
+                            <a :href="'/cpzone/author/id/' + novel.author_id" class="cp-novel-author iconfont icon-zuozhe" v-text="novel.novel_author"></a>
+                            <p class="cp-novel-desc" v-text="novel.novel_desc"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <div class="cp-over-hidden" style="margin-top: 15px;">
+            <div class="left" style="width: 895px;">
+                <div class="cp-card">
+                    <div class="cp-card-header cp-card-header-bold">
+                        <i class="iconfont icon-wanjie"></i>
+                        <h3>分类精选</h3>
+                        <!-- <a href="javascript:;" @click="getRandomRecList('sortslt', 1, 'sortsltList', 'sortsltListDom')" class="random iconfont icon-xingzhuangjiehe">换一换</a> -->
+                    </div>
+                    <div class="cp-card-line"></div>
+                    <div class="cp-over-hidden" id="sortsltListDom">
+                        <div class="cp-done-rec-list" v-cloak>
+                            <div class="cp-done-rec-item" v-for="(novel, index) in sortsltList" :key="novel.novel_id">
+                                <a :href="'/novel-' + novel.novel_id + '.html'" class="cp-novel-cover">
+                                    <img :src="novel.novel_cover" />
+                                </a>
+                                <div class="left" style="width: 160px;">
+                                    <a :href="'/novel-' + novel.novel_id + '.html'" class="cp-novel-name cp-ellipsis" v-text="novel.novel_name"></a>
+                                    <a :href="'/cpzone/author/id/' + novel.author_id" class="cp-novel-author iconfont icon-zuozhe" v-text="novel.novel_author"></a>
+                                    <p class="cp-novel-desc" v-text="novel.novel_desc"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cp-card" style="margin-top: 14px;">
+                    <div class="cp-card-header cp-card-header-bold">
+                        <i class="iconfont icon-xinshu"></i>
+                        <h3>新书精选</h3>
+                        <!-- <a href="javascript:;" @click="getRandomRecList('newbookslt', 1, 'newbooksltList', 'newbooksltListDom')" class="random iconfont icon-xingzhuangjiehe">换一换</a> -->
+                    </div>
+                    <div class="cp-card-line"></div>
+                    <div class="cp-over-hidden" id="newbooksltListDom">
+                        <div class="cp-done-rec-list" v-cloak>
+                            <div class="cp-done-rec-item" v-for="(novel, index) in newbooksltList" :key="novel.novel_id">
+                                <a :href="'/novel-' + novel.novel_id + '.html'" class="cp-novel-cover">
+                                    <img :src="novel.novel_cover" />
+                                </a>
+                                <div class="left" style="width: 160px;">
+                                    <a :href="'/novel-' + novel.novel_id + '.html'" class="cp-novel-name cp-ellipsis" v-text="novel.novel_name"></a>
+                                    <a :href="'/cpzone/author/id/' + novel.author_id" class="cp-novel-author iconfont icon-zuozhe" v-text="novel.novel_author"></a>
+                                    <p class="cp-novel-desc" v-text="novel.novel_desc"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="right" style="width: 286px;">
+
+                <div class="cp-card">
+                    <div class="cp-card-header cp-card-header-bold">
+                        <span class="cp-card-header-line"></span>
+                        <h3>完结推荐</h3>
+                        <a href="javascript:;" @click="getRandomRecList('finishrec', 1, 'finishrecList', 'finishrecListDom')" class="random iconfont icon-xingzhuangjiehe">换一换</a>
+                    </div>
+                    <div class="cp-card-line"></div>
+                    <div class="" style="padding: 34px 16px;" id="finishrecListDom">
+                        <div class="cp-index-dramarec-list">
+                            <div class="swiper-container cp-dayrec-swiper" id="finishrecList">
+                                <div class="swiper-wrapper">
+                                    <div class="swiper-slide" v-cloak v-for="(novel, index) in finishrecList" :key="novel.novel_id">
+                                        <a class="cp-index-dayrec-item" :href="'/novel-' + novel.novel_id + '.html'">
+                                            <img :src="novel.novel_cover" />
+                                        </a>
+                                        <div class="cp-hidden" :class="'cpDramarecItem_' + index">
+                                            <!-- 冻结 -->
+                                            <span v-if="2 === novel.novel_status" class="cp-novel-name cp-ellipsis cp-frozen">
+                                                <span v-text="novel.novel_name"></span>
+                                                <i class="frozenIcon iconfont icon-ban"></i>
+                                            </span>
+                                            <!-- 锁定 -->
+                                            <span v-else-if="2 === novel.novel_clock" class="cp-novel-name cp-ellipsis cp-lock">
+                                                <span v-text="novel.novel_name"></span>
+                                                <i class="lockIcon icon-lock iconfont"></i>
+                                            </span>
+                                            <!-- 正常 -->
+                                            <a v-else :href="'/novel-' + novel.novel_id + '.html'" class="cp-novel-name cp-ellipsis" v-text="novel.novel_name"></a>
+                                            <a :href="'/cpzone/author/id/' + novel.author_id" class="cp-novel-author" v-text="novel.novel_author"></a>
+                                            <p class="cp-novel-desc" v-text="novel.novel_desc"></p>
+
+                                            <!-- 冻结 -->
+                                            <span v-if="2 === novel.novel_status" class="cp-novel-name cp-ellipsis cp-frozen">
+                                                <i class="frozenIcon iconfont icon-ban"></i>
+                                            </span>
+                                            <!-- 锁定 -->
+                                            <span v-else-if="novel.novel_clock" class="cp-novel-name cp-ellipsis cp-lock">
+                                                <i class="lockIcon icon-lock iconfont"></i>
+                                            </span>
+                                            <!-- 正常 -->
+                                            <a v-else class="show-detail" :href="'/novel-' + novel.novel_id + '.html'">了解一下</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="swiper-pagination"></div>
+                            </div>
+                            <div class="cp-index-dramarec-index" id="cpIndexDramarecIndex"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cp-card" style="margin-top: 14px;">
+                    <div class="cp-card-header cp-card-header-bold">
+                        <span class="cp-card-header-line"></span>
+                        <h3 v-text="threesltName"></h3>
+                        <a href="javascript:;" @click="getRandomRecList('threeslt', 1, 'threesltList', 'threesltListDom')" class="random iconfont icon-xingzhuangjiehe">换一换</a>
+                    </div>
+                    <div class="cp-card-line"></div>
+                    <div class="" style="padding: 34px 16px;" id="threesltListDom">
+                        <div class="cp-index-dramarec-list">
+                            <div class="swiper-container cp-dayrec-swiper" id="threesltList">
+                                <div class="swiper-wrapper">
+                                    <div class="swiper-slide" v-cloak v-for="(novel, index) in threesltList" :key="novel.novel_id">
+                                        <a class="cp-index-dayrec-item" :href="'/novel-' + novel.novel_id + '.html'">
+                                            <img :src="novel.novel_cover" />
+                                        </a>
+                                        <div class="cp-hidden" :class="'cpThreesltItem_' + index">
+                                            <!-- 冻结 -->
+                                            <span v-if="2 === novel.novel_status" class="cp-novel-name cp-ellipsis cp-frozen">
+                                                <span v-text="novel.novel_name"></span>
+                                                <i class="frozenIcon iconfont icon-ban"></i>
+                                            </span>
+                                            <!-- 锁定 -->
+                                            <span v-else-if="2 === novel.novel_clock" class="cp-novel-name cp-ellipsis cp-lock">
+                                                <span v-text="novel.novel_name"></span>
+                                                <i class="lockIcon icon-lock iconfont"></i>
+                                            </span>
+                                            <!-- 正常 -->
+                                            <a v-else :href="'/novel-' + novel.novel_id + '.html'" class="cp-novel-name cp-ellipsis" v-text="novel.novel_name"></a>
+                                            <a :href="'/cpzone/author/id/' + novel.author_id" class="cp-novel-author" v-text="novel.novel_author"></a>
+                                            <p class="cp-novel-desc" v-text="novel.novel_desc"></p>
+
+                                            <!-- 冻结 -->
+                                            <span v-if="2 === novel.novel_status" class="cp-novel-name cp-ellipsis cp-frozen">
+                                                <i class="frozenIcon iconfont icon-ban"></i>
+                                            </span>
+                                            <!-- 锁定 -->
+                                            <span v-else-if="novel.novel_clock" class="cp-novel-name cp-ellipsis cp-lock">
+                                                <i class="lockIcon icon-lock iconfont"></i>
+                                            </span>
+                                            <!-- 正常 -->
+                                            <a v-else class="show-detail" :href="'/novel-' + novel.novel_id + '.html'">了解一下</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="swiper-pagination"></div>
+                            </div>
+                            <div class="cp-index-dramarec-index" id="cpThreesltIndex"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- 排行榜_开始 -->
+        <div class="cp-ranking" style="margin-top: 14px;">
+                            <div class="cp-ranking-list" style="width: 286.5px; height: 570px;">
+                    <div class="cp-ranking-top">
+                        <i class="iconfont icon-changxiao"></i>
+                        <h3>畅销榜</h3>
+                        <div class="cp-ranking-date">
+
+                                                            <span onmouseover="vue.setRankingIndex(0, 'day')"
+                                      :class="rankingIndex[0] == 'day' ? 'active' : ''">昨日</span>
+                                                            <span onmouseover="vue.setRankingIndex(0, 'latest_seven')"
+                                      :class="rankingIndex[0] == 'latest_seven' ? 'active' : ''">7天</span>
+                                                            <span onmouseover="vue.setRankingIndex(0, 'latest_thirty')"
+                                      :class="rankingIndex[0] == 'latest_thirty' ? 'active' : ''">30天</span>
+                            
+                        </div>
+                    </div>
+                                            <div v-show="rankingIndex[0] == 'day'" class="cp-ranking-novel-list">
+                                                                                                <div class="cp-ranking-novel-item cp-ranking-novel-detail">
+                                        <a href="/novel-138830.html"
+                                           class="cp-novel-cover">
+                                            <img src="https://resourcecp.oss-cn-beijing.aliyuncs.com/uploads/20191104/610678c3477033329f33788e1b5f368c1358a25.jpg?x-oss-process=style/small"/>
+                                        </a>
+                                        <i class="cp-ranking-top-img">
+                                            <img src="/pc/images/top_1.png"/>
+                                        </i>
+                                        <div class="left" style="width: 154.5px;">
+                                            <!-- 正常 -->
+                                            <a href="/novel-138830.html"
+                                               class="cp-novel-name cp-ellipsis">窥光</a>
+                                                                                        <a href="/cpzone/author/id/24571"
+                                               class="cp-novel-author iconfont icon-zuozhe">池总渣</a>
+                                            <p class="cp-novel-desc">小粉丝为爱逐梦演艺圈</p>
+                                        </div>
+                                    </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">2</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-26930.html"
+                                           class="cp-novel-name cp-ellipsis">你的距离</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">3</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-122309.html"
+                                           class="cp-novel-name cp-ellipsis">形婚</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">4</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-24342.html"
+                                           class="cp-novel-name cp-ellipsis">台风眼</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">5</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-141614.html"
+                                           class="cp-novel-name cp-ellipsis">洪流</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">6</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-128198.html"
+                                           class="cp-novel-name cp-ellipsis">过界</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">7</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-133648.html"
+                                           class="cp-novel-name cp-ellipsis">小遗孀</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">8</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-23996.html"
+                                           class="cp-novel-name cp-ellipsis">热搜预定</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">9</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-7640.html"
+                                           class="cp-novel-name cp-ellipsis">总裁离魂小记</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">10</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-114066.html"
+                                           class="cp-novel-name cp-ellipsis">貌合神离</a>
+                                                                            </div>
+                                                                                                                        <a target="_blank" class="cp-ranking-more" @click="more(1, 0)">More ></a>
+                                                    </div>
+                                            <div v-show="rankingIndex[0] == 'latest_seven'" class="cp-ranking-novel-list">
+                                                                                                <div class="cp-ranking-novel-item cp-ranking-novel-detail">
+                                        <a href="/novel-26930.html"
+                                           class="cp-novel-cover">
+                                            <img src="https://resourcecp.oss-cn-beijing.aliyuncs.com/uploads/20190509/102c6da4f6ffe35b1ef4c6052e10a94770f7.jpg?x-oss-process=style/small"/>
+                                        </a>
+                                        <i class="cp-ranking-top-img">
+                                            <img src="/pc/images/top_1.png"/>
+                                        </i>
+                                        <div class="left" style="width: 154.5px;">
+                                            <!-- 正常 -->
+                                            <a href="/novel-26930.html"
+                                               class="cp-novel-name cp-ellipsis">你的距离</a>
+                                                                                        <a href="/cpzone/author/id/78"
+                                               class="cp-novel-author iconfont icon-zuozhe">公子优</a>
+                                            <p class="cp-novel-desc">学渣社交软件完美配对上教授</p>
+                                        </div>
+                                    </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">2</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-138830.html"
+                                           class="cp-novel-name cp-ellipsis">窥光</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">3</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-122309.html"
+                                           class="cp-novel-name cp-ellipsis">形婚</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">4</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-114066.html"
+                                           class="cp-novel-name cp-ellipsis">貌合神离</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">5</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-24342.html"
+                                           class="cp-novel-name cp-ellipsis">台风眼</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">6</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-23996.html"
+                                           class="cp-novel-name cp-ellipsis">热搜预定</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">7</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-133648.html"
+                                           class="cp-novel-name cp-ellipsis">小遗孀</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">8</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-128198.html"
+                                           class="cp-novel-name cp-ellipsis">过界</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">9</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-141614.html"
+                                           class="cp-novel-name cp-ellipsis">洪流</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">10</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-20748.html"
+                                           class="cp-novel-name cp-ellipsis">作践</a>
+                                                                            </div>
+                                                                                                                        <a target="_blank" class="cp-ranking-more" @click="more(1, 0)">More ></a>
+                                                    </div>
+                                            <div v-show="rankingIndex[0] == 'latest_thirty'" class="cp-ranking-novel-list">
+                                                                                                <div class="cp-ranking-novel-item cp-ranking-novel-detail">
+                                        <a href="/novel-138830.html"
+                                           class="cp-novel-cover">
+                                            <img src="https://resourcecp.oss-cn-beijing.aliyuncs.com/uploads/20191104/610678c3477033329f33788e1b5f368c1358a25.jpg?x-oss-process=style/small"/>
+                                        </a>
+                                        <i class="cp-ranking-top-img">
+                                            <img src="/pc/images/top_1.png"/>
+                                        </i>
+                                        <div class="left" style="width: 154.5px;">
+                                            <!-- 正常 -->
+                                            <a href="/novel-138830.html"
+                                               class="cp-novel-name cp-ellipsis">窥光</a>
+                                                                                        <a href="/cpzone/author/id/24571"
+                                               class="cp-novel-author iconfont icon-zuozhe">池总渣</a>
+                                            <p class="cp-novel-desc">小粉丝为爱逐梦演艺圈</p>
+                                        </div>
+                                    </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">2</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-26930.html"
+                                           class="cp-novel-name cp-ellipsis">你的距离</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">3</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-122309.html"
+                                           class="cp-novel-name cp-ellipsis">形婚</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">4</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-114066.html"
+                                           class="cp-novel-name cp-ellipsis">貌合神离</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">5</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-125637.html"
+                                           class="cp-novel-name cp-ellipsis">恋爱错误宝典</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">6</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-24342.html"
+                                           class="cp-novel-name cp-ellipsis">台风眼</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">7</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-23996.html"
+                                           class="cp-novel-name cp-ellipsis">热搜预定</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">8</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-133648.html"
+                                           class="cp-novel-name cp-ellipsis">小遗孀</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">9</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-128198.html"
+                                           class="cp-novel-name cp-ellipsis">过界</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">10</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-141614.html"
+                                           class="cp-novel-name cp-ellipsis">洪流</a>
+                                                                            </div>
+                                                                                                                        <a target="_blank" class="cp-ranking-more" @click="more(1, 0)">More ></a>
+                                                    </div>
+                                    </div>
+                            <div class="cp-ranking-list" style="width: 286.5px; height: 570px;">
+                    <div class="cp-ranking-top">
+                        <i class="iconfont icon-renqi"></i>
+                        <h3>人气榜</h3>
+                        <div class="cp-ranking-date">
+
+                                                            <span onmouseover="vue.setRankingIndex(1, 'latest_seven')"
+                                      :class="rankingIndex[1] == 'latest_seven' ? 'active' : ''">7天</span>
+                                                            <span onmouseover="vue.setRankingIndex(1, 'latest_thirty')"
+                                      :class="rankingIndex[1] == 'latest_thirty' ? 'active' : ''">30天</span>
+                                                            <span onmouseover="vue.setRankingIndex(1, 'all')"
+                                      :class="rankingIndex[1] == 'all' ? 'active' : ''">总</span>
+                            
+                        </div>
+                    </div>
+                                            <div v-show="rankingIndex[1] == 'latest_seven'" class="cp-ranking-novel-list">
+                                                                                                <div class="cp-ranking-novel-item cp-ranking-novel-detail">
+                                        <a href="/novel-26930.html"
+                                           class="cp-novel-cover">
+                                            <img src="https://resourcecp.oss-cn-beijing.aliyuncs.com/uploads/20190509/102c6da4f6ffe35b1ef4c6052e10a94770f7.jpg?x-oss-process=style/small"/>
+                                        </a>
+                                        <i class="cp-ranking-top-img">
+                                            <img src="/pc/images/top_1.png"/>
+                                        </i>
+                                        <div class="left" style="width: 154.5px;">
+                                            <!-- 正常 -->
+                                            <a href="/novel-26930.html"
+                                               class="cp-novel-name cp-ellipsis">你的距离</a>
+                                                                                        <a href="/cpzone/author/id/78"
+                                               class="cp-novel-author iconfont icon-zuozhe">公子优</a>
+                                            <p class="cp-novel-desc">学渣社交软件完美配对上教授</p>
+                                        </div>
+                                    </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">2</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-34376.html"
+                                           class="cp-novel-name cp-ellipsis">飞鸥不下</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">3</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-144835.html"
+                                           class="cp-novel-name cp-ellipsis">你的表情包比本人好看</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">4</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-141889.html"
+                                           class="cp-novel-name cp-ellipsis">我不可能喜欢他</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">5</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-145264.html"
+                                           class="cp-novel-name cp-ellipsis">明星公关</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">6</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-138830.html"
+                                           class="cp-novel-name cp-ellipsis">窥光</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">7</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-137548.html"
+                                           class="cp-novel-name cp-ellipsis">看鸟吗哥</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">8</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-140952.html"
+                                           class="cp-novel-name cp-ellipsis">恣妄</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">9</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-34399.html"
+                                           class="cp-novel-name cp-ellipsis">月光灯</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">10</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-22419.html"
+                                           class="cp-novel-name cp-ellipsis">听说前男友是我新队友</a>
+                                                                            </div>
+                                                                                                                        <a target="_blank" class="cp-ranking-more" @click="more(6, 1)">More ></a>
+                                                    </div>
+                                            <div v-show="rankingIndex[1] == 'latest_thirty'" class="cp-ranking-novel-list">
+                                                                                                <div class="cp-ranking-novel-item cp-ranking-novel-detail">
+                                        <a href="/novel-125637.html"
+                                           class="cp-novel-cover">
+                                            <img src="https://resourcecp.oss-cn-beijing.aliyuncs.com/uploads/20191017/378279cde0f5aa10795fc1f4d920dc097e5aebb.jpg?x-oss-process=style/small"/>
+                                        </a>
+                                        <i class="cp-ranking-top-img">
+                                            <img src="/pc/images/top_1.png"/>
+                                        </i>
+                                        <div class="left" style="width: 154.5px;">
+                                            <!-- 正常 -->
+                                            <a href="/novel-125637.html"
+                                               class="cp-novel-name cp-ellipsis">恋爱错误宝典</a>
+                                                                                        <a href="/cpzone/author/id/11685"
+                                               class="cp-novel-author iconfont icon-zuozhe">反舌鸟</a>
+                                            <p class="cp-novel-desc">你们不要再吵了 小L老师上线了</p>
+                                        </div>
+                                    </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">2</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-26930.html"
+                                           class="cp-novel-name cp-ellipsis">你的距离</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">3</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-138830.html"
+                                           class="cp-novel-name cp-ellipsis">窥光</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">4</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-137548.html"
+                                           class="cp-novel-name cp-ellipsis">看鸟吗哥</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">5</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-34376.html"
+                                           class="cp-novel-name cp-ellipsis">飞鸥不下</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">6</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-122309.html"
+                                           class="cp-novel-name cp-ellipsis">形婚</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">7</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-143371.html"
+                                           class="cp-novel-name cp-ellipsis">纯真丑闻</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">8</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-141889.html"
+                                           class="cp-novel-name cp-ellipsis">我不可能喜欢他</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">9</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-144835.html"
+                                           class="cp-novel-name cp-ellipsis">你的表情包比本人好看</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">10</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-114066.html"
+                                           class="cp-novel-name cp-ellipsis">貌合神离</a>
+                                                                            </div>
+                                                                                                                        <a target="_blank" class="cp-ranking-more" @click="more(6, 1)">More ></a>
+                                                    </div>
+                                            <div v-show="rankingIndex[1] == 'all'" class="cp-ranking-novel-list">
+                                                                                                <div class="cp-ranking-novel-item cp-ranking-novel-detail">
+                                        <a href="/novel-11051.html"
+                                           class="cp-novel-cover">
+                                            <img src="https://resourcecp.oss-cn-beijing.aliyuncs.com/uploads/20180914/80c336ca3334280e36ec3e4b85517c22.jpg?x-oss-process=style/small"/>
+                                        </a>
+                                        <i class="cp-ranking-top-img">
+                                            <img src="/pc/images/top_1.png"/>
+                                        </i>
+                                        <div class="left" style="width: 154.5px;">
+                                            <!-- 正常 -->
+                                            <a href="/novel-11051.html"
+                                               class="cp-novel-name cp-ellipsis">我嗑了对家X我的CP</a>
+                                                                                        <a href="/cpzone/author/id/8909"
+                                               class="cp-novel-author iconfont icon-zuozhe">PEPA</a>
+                                            <p class="cp-novel-desc">娱乐圈大甜饼 深柜X腐男</p>
+                                        </div>
+                                    </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">2</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-23996.html"
+                                           class="cp-novel-name cp-ellipsis">热搜预定</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">3</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-9041.html"
+                                           class="cp-novel-name cp-ellipsis">离婚前后</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">4</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-26930.html"
+                                           class="cp-novel-name cp-ellipsis">你的距离</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">5</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-15556.html"
+                                           class="cp-novel-name cp-ellipsis">明日星程</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">6</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-27429.html"
+                                           class="cp-novel-name cp-ellipsis">他的人设不太行</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">7</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-14012.html"
+                                           class="cp-novel-name cp-ellipsis">日落大道</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">8</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-3020.html"
+                                           class="cp-novel-name cp-ellipsis">纸飞机</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">9</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-20337.html"
+                                           class="cp-novel-name cp-ellipsis">陈伤</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">10</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-7835.html"
+                                           class="cp-novel-name cp-ellipsis">落池</a>
+                                                                            </div>
+                                                                                                                        <a target="_blank" class="cp-ranking-more" @click="more(6, 1)">More ></a>
+                                                    </div>
+                                    </div>
+                            <div class="cp-ranking-list" style="width: 286.5px; height: 570px;">
+                    <div class="cp-ranking-top">
+                        <i class="iconfont icon-xinshu"></i>
+                        <h3>新人榜</h3>
+                        <div class="cp-ranking-date">
+
+                                                            <span onmouseover="vue.setRankingIndex(2, 'day')"
+                                      :class="rankingIndex[2] == 'day' ? 'active' : ''">昨日</span>
+                                                            <span onmouseover="vue.setRankingIndex(2, 'latest_seven')"
+                                      :class="rankingIndex[2] == 'latest_seven' ? 'active' : ''">7天</span>
+                            
+                        </div>
+                    </div>
+                                            <div v-show="rankingIndex[2] == 'day'" class="cp-ranking-novel-list">
+                                                                                                <div class="cp-ranking-novel-item cp-ranking-novel-detail">
+                                        <a href="/novel-152410.html"
+                                           class="cp-novel-cover">
+                                            <img src="https://resourcecp.oss-cn-beijing.aliyuncs.com/uploads/20191101/1276995c4368bcc649a76a6a0e5986b788907c40.jpg?x-oss-process=style/small"/>
+                                        </a>
+                                        <i class="cp-ranking-top-img">
+                                            <img src="/pc/images/top_1.png"/>
+                                        </i>
+                                        <div class="left" style="width: 154.5px;">
+                                            <!-- 正常 -->
+                                            <a href="/novel-152410.html"
+                                               class="cp-novel-name cp-ellipsis">和死对头结婚之后</a>
+                                                                                        <a href="/cpzone/author/id/40369"
+                                               class="cp-novel-author iconfont icon-zuozhe">眉开挽</a>
+                                            <p class="cp-novel-desc">和死对头结婚之后，才发现他暗恋了我十年？</p>
+                                        </div>
+                                    </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">2</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-150110.html"
+                                           class="cp-novel-name cp-ellipsis">无咎</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">3</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-152119.html"
+                                           class="cp-novel-name cp-ellipsis">职业粉的业余操作</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">4</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-152431.html"
+                                           class="cp-novel-name cp-ellipsis">双重驯化</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">5</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-151533.html"
+                                           class="cp-novel-name cp-ellipsis">致命引诱</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">6</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-153429.html"
+                                           class="cp-novel-name cp-ellipsis">我独醒</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">7</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-152618.html"
+                                           class="cp-novel-name cp-ellipsis">恩将仇报</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">8</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-152615.html"
+                                           class="cp-novel-name cp-ellipsis">小凉伴</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">9</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-150892.html"
+                                           class="cp-novel-name cp-ellipsis">大卫</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">10</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-150442.html"
+                                           class="cp-novel-name cp-ellipsis">死神在我家</a>
+                                                                            </div>
+                                                                                                                        <a target="_blank" class="cp-ranking-more" @click="more(8, 2)">More ></a>
+                                                    </div>
+                                            <div v-show="rankingIndex[2] == 'latest_seven'" class="cp-ranking-novel-list">
+                                                                                                <div class="cp-ranking-novel-item cp-ranking-novel-detail">
+                                        <a href="/novel-152410.html"
+                                           class="cp-novel-cover">
+                                            <img src="https://resourcecp.oss-cn-beijing.aliyuncs.com/uploads/20191101/1276995c4368bcc649a76a6a0e5986b788907c40.jpg?x-oss-process=style/small"/>
+                                        </a>
+                                        <i class="cp-ranking-top-img">
+                                            <img src="/pc/images/top_1.png"/>
+                                        </i>
+                                        <div class="left" style="width: 154.5px;">
+                                            <!-- 正常 -->
+                                            <a href="/novel-152410.html"
+                                               class="cp-novel-name cp-ellipsis">和死对头结婚之后</a>
+                                                                                        <a href="/cpzone/author/id/40369"
+                                               class="cp-novel-author iconfont icon-zuozhe">眉开挽</a>
+                                            <p class="cp-novel-desc">和死对头结婚之后，才发现他暗恋了我十年？</p>
+                                        </div>
+                                    </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">2</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-150110.html"
+                                           class="cp-novel-name cp-ellipsis">无咎</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">3</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-151533.html"
+                                           class="cp-novel-name cp-ellipsis">致命引诱</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">4</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-152119.html"
+                                           class="cp-novel-name cp-ellipsis">职业粉的业余操作</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">5</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-152431.html"
+                                           class="cp-novel-name cp-ellipsis">双重驯化</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">6</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-153429.html"
+                                           class="cp-novel-name cp-ellipsis">我独醒</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">7</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-152615.html"
+                                           class="cp-novel-name cp-ellipsis">小凉伴</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">8</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-152618.html"
+                                           class="cp-novel-name cp-ellipsis">恩将仇报</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">9</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-150892.html"
+                                           class="cp-novel-name cp-ellipsis">大卫</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">10</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-150442.html"
+                                           class="cp-novel-name cp-ellipsis">死神在我家</a>
+                                                                            </div>
+                                                                                                                        <a target="_blank" class="cp-ranking-more" @click="more(8, 2)">More ></a>
+                                                    </div>
+                                    </div>
+                            <div class="cp-ranking-list" style="width: 286.5px; height: 570px;">
+                    <div class="cp-ranking-top">
+                        <i class="iconfont icon-xinshu"></i>
+                        <h3>互动榜</h3>
+                        <div class="cp-ranking-date">
+
+                                                            <span onmouseover="vue.setRankingIndex(3, 'hour')"
+                                      :class="rankingIndex[3] == 'hour' ? 'active' : ''"></span>
+                            
+                        </div>
+                    </div>
+                                            <div v-show="rankingIndex[3] == 'hour'" class="cp-ranking-novel-list">
+                                                                                                <div class="cp-ranking-novel-item cp-ranking-novel-detail">
+                                        <a href="/novel-112007.html"
+                                           class="cp-novel-cover">
+                                            <img src="https://resourcecp.oss-cn-beijing.aliyuncs.com/uploads/20190712/a32a6e528f13ef5efd331508211e2b67.jpg?x-oss-process=style/small"/>
+                                        </a>
+                                        <i class="cp-ranking-top-img">
+                                            <img src="/pc/images/top_1.png"/>
+                                        </i>
+                                        <div class="left" style="width: 154.5px;">
+                                            <!-- 正常 -->
+                                            <a href="/novel-112007.html"
+                                               class="cp-novel-name cp-ellipsis">黎明之后</a>
+                                                                                        <a href="/cpzone/author/id/6694"
+                                               class="cp-novel-author iconfont icon-zuozhe">冰块儿</a>
+                                            <p class="cp-novel-desc">前任要封杀我，我怎么整死他？</p>
+                                        </div>
+                                    </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">2</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-146605.html"
+                                           class="cp-novel-name cp-ellipsis">新婚旧爱</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">3</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-8910.html"
+                                           class="cp-novel-name cp-ellipsis">昨日如死</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">4</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-135766.html"
+                                           class="cp-novel-name cp-ellipsis">何日君再来</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">5</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-152428.html"
+                                           class="cp-novel-name cp-ellipsis">你是什么垃圾</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">6</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-143371.html"
+                                           class="cp-novel-name cp-ellipsis">纯真丑闻</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">7</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-145636.html"
+                                           class="cp-novel-name cp-ellipsis">欢迎回到我的频道</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">8</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-26930.html"
+                                           class="cp-novel-name cp-ellipsis">你的距离</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">9</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-15929.html"
+                                           class="cp-novel-name cp-ellipsis">我是一个在gay吧打工的直男</a>
+                                                                            </div>
+                                                                                                                                <div class="cp-ranking-novel-item">
+                                        <span class="cp-ranking-order">10</span>
+                                        <!-- 正常 -->
+                                        <a href="/novel-144835.html"
+                                           class="cp-novel-name cp-ellipsis">你的表情包比本人好看</a>
+                                                                            </div>
+                                                                                                                        <a target="_blank" class="cp-ranking-more" @click="more(11, 3)">More ></a>
+                                                    </div>
+                                    </div>
+                        <div class="clear"></div>
+        </div>
+
+        <div class="cp-card" style="margin-top: 14px;">
+            <div class="cp-card-header cp-card-header-bold">
+                <span class="cp-card-header-line"></span>
+                <h3>最近更新</h3>
+                <a href="/novel/stack?type_id=1" class="more">More &gt; </a>
+            </div>
+            <div class="cp-card-content">
+                <table class="cp-update-table">
+                    <colgroup>
+                        <col width="55"/>
+                        <col width="220"/>
+                        <col width="130"/>
+                        <col width=""/>
+                        <col width="190"/>
+                        <col width="150"/>
+                    </colgroup>
+                    <thead>
+                    <tr>
+                        <th>类型</th>
+                        <th>书名</th>
+                        <th>作者</th>
+                        <th>简介</th>
+                        <th>章节</th>
+                        <th>更新时间</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr v-for="novel in novelUpdateList">
+                        <td>
+                            <span style="display: block;max-width: 85px;" class="cp-novel-type"
+                                  v-text="'[' + novel.novel_type + ']'"></span>
+                        </td>
+                        <td>
+                            <a style="display: block;max-width: 210px;" class="cp-ellipsis"
+                                :class="novel.novel_status == 1 && novel.novel_lock > 0 && 'cp-lock'"
+                                :class="novel.novel_status == 2 && 'cp-frozen'"
+                                @click="lock(novel)"
+                               :href="novel.novel_status == 1 && novel.novel_lock == 0 ? '/novel-' + novel.novel_id + '.html' : 'javascript:;'">
+                                {{novel.novel_name}}
+                                <i class="lockIcon icon-lock iconfont" v-if="novel.novel_status == 1 && novel.novel_lock > 0"></i>
+                                <i class="frozenIcon icon-ban iconfont" v-if="novel.novel_status == 2"></i>
+                            </a>
+                        </td>
+                        <td>
+                            <span style="display: block;max-width: 120px;" v-text="novel.novel_author"></span>
+                        </td>
+                        <td>
+                            <span style="display: block;max-width: 380px;" class="cp-ellipsis"
+                                  v-text="novel.novel_desc"></span>
+                        </td>
+                        <td>
+                            <a style="display: block;max-width: 180px;" class="cp-ellipsis"
+                               :href="'/novel-' + novel.novel_id + '.html'" v-text="novel.new_chapter_name"></a>
+                        </td>
+                        <td>
+                            <span style="display: block;max-width: 140px;" v-text="novel.novel_date"></span>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <script type="text/javascript" src="/js/swiper.min.js?v=20191115"></script>
+    <link rel="stylesheet" href="/css/swiper.min.css?v=20191115"/>
+    <script type="text/javascript">
+        var vue = new Vue({
+            el: '#vueBox',
+            data: {
+                rankingIndex: ['day', 'latest_seven', 'day', 'hour'],
+                novelUpdateList: [],
+                tid: 1,
+                weekRecList: [{"novel_id":35137,"novel_status":1,"novel_lock":0,"author_id":5350,"novel_name":"\u8fd8\u6211\u5c3e\u5df4","novel_cover":"https:\/\/resourcecp.oss-cn-beijing.aliyuncs.com\/uploads\/20190707\/2ab683962244009302b18532e7252f8f.png?x-oss-process=style\/small","novel_desc":"\u5c0f\u72d0\u72f8\u7cbe\u5982\u4f55\u52fe\u5f15\u4eba\u8bfe\u5802\u5f00\u8bfe\u5566","novel_author":"\u4f74\u4e00","novel_wordnumber":89020,"novel_uptime":"\u524d\u5929 01:36","novel_type":"\u90fd\u5e02","novel_tag":"\u8111\u6d1e","novel_allclick":100430,"novel_process":1,"novel_allcoll":2126,"novel_clock":0,"editor_msg":""},{"novel_id":114590,"novel_status":1,"novel_lock":0,"author_id":24080,"novel_name":"\u5f71\u5e1d\u4ed6\u603b\u662f\u7231\u53d1\u7cd6","novel_cover":"https:\/\/resourcecp.oss-cn-beijing.aliyuncs.com\/uploads\/20190730\/33c70458dfeb1e0f020436dbd5b6b09d.jpg?x-oss-process=style\/small","novel_desc":"\u9ad8\u51b7\u6df1\u60c5\u5f71\u5e1d\u653bx\u50b2\u5a07\u4e13\u4e00\u7f8e\u4eba\u53d7","novel_author":"\u9752\u58f3\u68a8","novel_wordnumber":137762,"novel_uptime":"\u6628\u5929 23:15","novel_type":"\u90fd\u5e02","novel_tag":"\u751c\u5ba0","novel_allclick":145873,"novel_process":1,"novel_allcoll":2425,"novel_clock":0,"editor_msg":""},{"novel_id":120471,"novel_status":1,"novel_lock":0,"author_id":35537,"novel_name":"\u963f\u83ab\u897f\u6797\u5c0f\u751c\u997c","novel_cover":"https:\/\/resourcecp.oss-cn-beijing.aliyuncs.com\/uploads\/20190917\/1204278caf9197d3205595e6d8007a9d0aaa095b.jpg?x-oss-process=style\/small","novel_desc":"\u3010\u4e09\u54e5\uff0c\u6211\u60f3\u4eb2\u4f60\u3011\u2014\u2014\u3010\u6765\u3002\u3011","novel_author":"\u5927\u5927\u9752\u67a3\u513f","novel_wordnumber":135475,"novel_uptime":"11-13","novel_type":"\u90fd\u5e02","novel_tag":"\u5e74\u4e0b","novel_allclick":71014,"novel_process":1,"novel_allcoll":1408,"novel_clock":0,"editor_msg":""},{"novel_id":18371,"novel_status":1,"novel_lock":0,"author_id":14010,"novel_name":"\u788e\u9633","novel_cover":"https:\/\/resourcecp.oss-cn-beijing.aliyuncs.com\/uploads\/20190202\/c2df62734960e4cdcc84b23cb7035a26.jpg?x-oss-process=style\/small","novel_desc":"\u8ba9\u6211\u5e26\u4f60\u770b\u89c1\u65e5\u51fa\u3002","novel_author":"\u56db\u91ce\u6df1\u6df1","novel_wordnumber":347191,"novel_uptime":"\u6628\u5929 23:59","novel_type":"\u9752\u6625","novel_tag":"\u5e74\u4e0a","novel_allclick":997513,"novel_process":1,"novel_allcoll":13744,"novel_clock":0,"editor_msg":""},{"novel_id":135053,"novel_status":1,"novel_lock":0,"author_id":46274,"novel_name":"\u9006\u5149\u800c\u884c\u7684\u4f60","novel_cover":"https:\/\/resourcecp.oss-cn-beijing.aliyuncs.com\/uploads\/20191028\/1147214c4fed198e020b3c4031e437d3d03e34e6.jpg?x-oss-process=style\/small","novel_desc":"\u9690\u5fcd\u5916\u79d1\u533b\u751f\u653b X \u4e0d\u6b63\u7ecf\u5a31\u4e50\u660e\u661f\u53d7 ","novel_author":"\u5c0f\u5d07\u5c71","novel_wordnumber":200533,"novel_uptime":"21 \u5c0f\u65f6\u524d","novel_type":"\u90fd\u5e02","novel_tag":"\u8650\u604b","novel_allclick":56315,"novel_process":1,"novel_allcoll":717,"novel_clock":0,"editor_msg":""}],
+                sortsltList: [{"novel_id":122309,"novel_status":1,"novel_lock":0,"author_id":3998,"novel_name":"\u5f62\u5a5a","novel_cover":"https:\/\/resourcecp.oss-cn-beijing.aliyuncs.com\/uploads\/20190802\/49915c29f98ed4f1ea5456fc22b5a54a.PNG?x-oss-process=style\/small","novel_desc":"\u5b8c\u4e86\uff0c\u6211\u7adf\u7136\u8ddf\u4e00\u53ea\u94c1\u516c\u9e21\u7ed3\u5a5a\u4e86","novel_author":"\u72ac\u5347","novel_wordnumber":206304,"novel_uptime":"19 \u5c0f\u65f6\u524d","novel_type":"\u90fd\u5e02","novel_tag":"\u751c\u5ba0","novel_allclick":2568724,"novel_process":1,"novel_allcoll":34052,"novel_clock":0,"editor_msg":""},{"novel_id":114066,"novel_status":1,"novel_lock":0,"author_id":29326,"novel_name":"\u8c8c\u5408\u795e\u79bb","novel_cover":"https:\/\/resourcecp.oss-cn-beijing.aliyuncs.com\/uploads\/20190915\/729173bad03fb0e039413fb18c54bf27.jpg?x-oss-process=style\/small","novel_desc":"\u4f60\u6709\u6731\u7802\u75e3\uff0c\u6211\u6709\u767d\u6708\u5149\u3002\u9634\u90c1\u795e\u7ecf\u75c5\u91d1\u4e3b\u653b","novel_author":"\u829d\u58eb\u9762\u5305","novel_wordnumber":195264,"novel_uptime":"\u524d\u5929 15:29","novel_type":"\u90fd\u5e02","novel_tag":"\u5e74\u4e0a","novel_allclick":1768797,"novel_process":1,"novel_allcoll":25834,"novel_clock":0,"editor_msg":""},{"novel_id":33573,"novel_status":1,"novel_lock":0,"author_id":60,"novel_name":"\u91cd\u5706","novel_cover":"https:\/\/resourcecp.oss-cn-beijing.aliyuncs.com\/uploads\/20190625\/bd5652895b0bc11e39e2f1d0a81d6055.jpg?x-oss-process=style\/small","novel_desc":"\u7834\u955c\u91cd\u5706\uff0c\u9178\u9178\u751c\u751c\u3002","novel_author":"\u4e0d\u8ba4\u8def\u7684\u625b\u5c38\u4eba","novel_wordnumber":189264,"novel_uptime":"21 \u5c0f\u65f6\u524d","novel_type":"\u90fd\u5e02","novel_tag":"\u751c\u5ba0","novel_allclick":1283789,"novel_process":1,"novel_allcoll":17509,"novel_clock":0,"editor_msg":""},{"novel_id":138830,"novel_status":1,"novel_lock":0,"author_id":24571,"novel_name":"\u7aa5\u5149","novel_cover":"https:\/\/resourcecp.oss-cn-beijing.aliyuncs.com\/uploads\/20191104\/610678c3477033329f33788e1b5f368c1358a25.jpg?x-oss-process=style\/small","novel_desc":"\u5c0f\u7c89\u4e1d\u4e3a\u7231\u9010\u68a6\u6f14\u827a\u5708","novel_author":"\u6c60\u603b\u6e23","novel_wordnumber":225866,"novel_uptime":"\u6628\u5929 23:12","novel_type":"\u90fd\u5e02","novel_tag":"\u5e74\u4e0a","novel_allclick":3367500,"novel_process":1,"novel_allcoll":39580,"novel_clock":0,"editor_msg":""},{"novel_id":125637,"novel_status":1,"novel_lock":0,"author_id":11685,"novel_name":"\u604b\u7231\u9519\u8bef\u5b9d\u5178","novel_cover":"https:\/\/resourcecp.oss-cn-beijing.aliyuncs.com\/uploads\/20191017\/378279cde0f5aa10795fc1f4d920dc097e5aebb.jpg?x-oss-process=style\/small","novel_desc":"\u4f60\u4eec\u4e0d\u8981\u518d\u5435\u4e86 \u5c0fL\u8001\u5e08\u4e0a\u7ebf\u4e86","novel_author":"\u53cd\u820c\u9e1f","novel_wordnumber":123749,"novel_uptime":"11-06","novel_type":"\u90fd\u5e02","novel_tag":"\u60c5\u6295\u610f\u5408","novel_allclick":2412889,"novel_process":2,"novel_allcoll":41321,"novel_clock":0,"editor_msg":""},{"novel_id":24342,"novel_status":1,"novel_lock":0,"author_id":95,"novel_name":"\u53f0\u98ce\u773c","novel_cover":"https:\/\/resourcecp.oss-cn-beijing.aliyuncs.com\/uploads\/20190705\/f9b3304ceb8b7582e3970fca4e4fd688.JPG?x-oss-process=style\/small","novel_desc":"\u6d6a\u5b50x\u5996\u5b7d","novel_author":"\u6f6d\u77f3","novel_wordnumber":393184,"novel_uptime":"\u6628\u5929 11:06","novel_type":"\u90fd\u5e02","novel_tag":"\u5a31\u4e50\u5708","novel_allclick":2201628,"novel_process":1,"novel_allcoll":31235,"novel_clock":0,"editor_msg":""}],
+                newbooksltList: [{"novel_id":153062,"novel_status":1,"novel_lock":0,"author_id":138,"novel_name":"\u85cf\u8d77\u6765","novel_cover":"https:\/\/resourcecp.oss-cn-beijing.aliyuncs.com\/uploads\/20191107\/534df4edf8c4a49fd1513ede010f7423.jpg?x-oss-process=style\/small","novel_desc":"\u4eca\u5929\u6e38\u54e5\u88abgay\u4e86\u5417\uff081\/1\uff09","novel_author":"\u963f\u962e\u6709\u9152","novel_wordnumber":27742,"novel_uptime":"\u521a\u521a","novel_type":"\u9752\u6625","novel_tag":"\u7834\u955c\u91cd\u5706","novel_allclick":34854,"novel_process":1,"novel_allcoll":1593,"novel_clock":0,"editor_msg":""},{"novel_id":149146,"novel_status":1,"novel_lock":0,"author_id":7649,"novel_name":"\u6211\u628a\u4f60\u5f53\u5144\u5f1f","novel_cover":"https:\/\/resourcecp.oss-cn-beijing.aliyuncs.com\/uploads\/20191016\/dd519dc5dbfd10093048472299082cd8.jpg?x-oss-process=style\/small","novel_desc":"\u4f60\u7adf\u89ca\u89ce\u6211\u7684\u5c0f\u5144\u5f1f\uff1f\uff01","novel_author":"\u6843\u767d\u767e","novel_wordnumber":48909,"novel_uptime":"9 \u5c0f\u65f6\u524d","novel_type":"\u9752\u6625","novel_tag":"\u751c\u5ba0","novel_allclick":145990,"novel_process":1,"novel_allcoll":4435,"novel_clock":0,"editor_msg":""},{"novel_id":152408,"novel_status":1,"novel_lock":0,"author_id":25695,"novel_name":"\u601d\u5b81","novel_cover":"https:\/\/resourcecp.oss-cn-beijing.aliyuncs.com\/uploads\/20191102\/17d788722dc5582457a6121c7e8da783.JPG?x-oss-process=style\/small","novel_desc":"\u8001\u53f8\u673a\u7684\u7231\u60c5\u6545\u4e8b\u3002","novel_author":"\u8212\u8212\u5802","novel_wordnumber":39116,"novel_uptime":"\u6628\u5929 12:12","novel_type":"\u90fd\u5e02","novel_tag":"\u751c\u5ba0","novel_allclick":3769,"novel_process":1,"novel_allcoll":99,"novel_clock":0,"editor_msg":""},{"novel_id":149732,"novel_status":1,"novel_lock":0,"author_id":150,"novel_name":"\u9694\u9774\u6414\u75d2","novel_cover":"https:\/\/resourcecp.oss-cn-beijing.aliyuncs.com\/uploads\/20191022\/ce1f946bf215ec92893f8917afd8437c.jpg?x-oss-process=style\/small","novel_desc":"\u653b\u77e5\u9053\u4e86\u53d7\u7684\u79d8\u5bc6\uff0c\u628a\u4ed6\u8fd9\u6837\u90a3\u6837\u7684\u6545\u4e8b\u3002","novel_author":"H_mark","novel_wordnumber":52675,"novel_uptime":"\u6628\u5929 20:09","novel_type":"\u90fd\u5e02","novel_tag":"\u8650\u604b","novel_allclick":16899,"novel_process":1,"novel_allcoll":412,"novel_clock":0,"editor_msg":""},{"novel_id":148691,"novel_status":1,"novel_lock":0,"author_id":4902,"novel_name":"\u505c\u4e91","novel_cover":"https:\/\/resourcecp.oss-cn-beijing.aliyuncs.com\/uploads\/20191016\/86142c5e0d4181cfa2f7918f2c2d7334703865.jpg?x-oss-process=style\/small","novel_desc":"\u5e74\u4e0b\u519b\u5b98\u5f88\u5ba0\u8001\u5a46\u4f46\u662f\u57fa\u672c\u4e0d\u542c\u8001\u5a46\u8bdd\u600e\u4e48\u529e","novel_author":"\u6797\u5149\u66e6","novel_wordnumber":100744,"novel_uptime":"13 \u5c0f\u65f6\u524d","novel_type":"\u6c11\u56fd","novel_tag":"\u751c\u5ba0","novel_allclick":255483,"novel_process":1,"novel_allcoll":6613,"novel_clock":0,"editor_msg":""},{"novel_id":152056,"novel_status":1,"novel_lock":0,"author_id":20054,"novel_name":"\u72ec\u767d","novel_cover":"https:\/\/resourcecp.oss-cn-beijing.aliyuncs.com\/uploads\/20191030\/694721c0b0a9bf4189f472c1d6d14d47630b875.jpg?x-oss-process=style\/small","novel_desc":"\u51b0\u5c71\u653bx\u6df7\u5c0f\u5b50\u53d7","novel_author":"\u4e8c\u6538","novel_wordnumber":51009,"novel_uptime":"20 \u5206\u949f\u524d","novel_type":"\u90fd\u5e02","novel_tag":"\u5e74\u4e0a","novel_allclick":7876,"novel_process":1,"novel_allcoll":230,"novel_clock":0,"editor_msg":""}],
+                finishrecList: [{"novel_id":114022,"novel_status":1,"novel_lock":0,"author_id":14282,"novel_name":"\u7231\u70ed\u590f","novel_cover":"https:\/\/resourcecp.oss-cn-beijing.aliyuncs.com\/uploads\/20190723\/661596cac958c826f03bd4b2ae1ade3a8c70ce6.jpg?x-oss-process=style\/small","novel_desc":"\u653b\u662f\u53d7\u5fc3\u4e0a\u7684\u73ab\u7470\u82b1","novel_author":"\u6c5fJJ","novel_wordnumber":197002,"novel_uptime":"11-01","novel_type":"\u90fd\u5e02","novel_tag":"\u5e74\u4e0b","novel_allclick":175673,"novel_process":2,"novel_allcoll":2223,"novel_clock":0,"editor_msg":""},{"novel_id":35166,"novel_status":1,"novel_lock":0,"author_id":17067,"novel_name":"\u6211\u4eec\u54e5\u54e5\u6ca1\u5212\u6c34","novel_cover":"https:\/\/resourcecp.oss-cn-beijing.aliyuncs.com\/uploads\/20190707\/328972c92c5df8a68668b7768474a23e0647add.jpg?x-oss-process=style\/small","novel_desc":"\u548c\u6211\u6390\u4e86\u4e09\u5e74\u7684\u9ed1\u7c89\u7adf\u7136\u662f\u6b63\u4e3b\u672c\u4eba\uff1f","novel_author":"\u4e8c\u86cb","novel_wordnumber":151084,"novel_uptime":"\u524d\u5929 20:12","novel_type":"\u90fd\u5e02","novel_tag":"HE","novel_allclick":1989122,"novel_process":1,"novel_allcoll":19146,"novel_clock":0,"editor_msg":""},{"novel_id":33930,"novel_status":1,"novel_lock":0,"author_id":1229,"novel_name":"\u88ab\u8feb\u8425\u4e1a","novel_cover":"https:\/\/resourcecp.oss-cn-beijing.aliyuncs.com\/uploads\/20190724\/b942985e358863c0d128be42e0aff815.jpg?x-oss-process=style\/small","novel_desc":"\u65e0\u8d56\u75de\u5e05\u6e23\u653bx\u6e05\u51b7\u7f8e\u4eba\u53d7,\u53cc\u91cd\u706b\u846c\u573a\u9884\u8b66","novel_author":"Delver_Jo","novel_wordnumber":321442,"novel_uptime":"10-22","novel_type":"\u90fd\u5e02","novel_tag":"\u5e74\u4e0b","novel_allclick":1194978,"novel_process":2,"novel_allcoll":21528,"novel_clock":0,"editor_msg":""}],
+                threesltList: [{"novel_id":142032,"novel_status":1,"novel_lock":0,"author_id":20073,"novel_name":"\u6019\u6076","novel_cover":"https:\/\/resourcecp.oss-cn-beijing.aliyuncs.com\/uploads\/20190924\/c8d2111dcd4e903958e2da2a59fe3c9b.jpg?x-oss-process=style\/small","novel_desc":"\u6ca1\u8111\u5b50X\u6ca1\u4eba\u6027","novel_author":"\u4ee3\u672c","novel_wordnumber":81578,"novel_uptime":"11-14","novel_type":"\u6c11\u56fd","novel_tag":"\u60c5\u6295\u610f\u5408","novel_allclick":11745,"novel_process":1,"novel_allcoll":285,"novel_clock":0,"editor_msg":""},{"novel_id":148619,"novel_status":1,"novel_lock":0,"author_id":45188,"novel_name":"\u4e91\u8fde","novel_cover":"https:\/\/resourcecp.oss-cn-beijing.aliyuncs.com\/uploads\/20191014\/1364766c517a7f7375820bb6d973d353279ca929.jpg?x-oss-process=style\/small","novel_desc":"\u6211\u8fd9\u53cc\u624b\uff0c\u80fd\u6551\u4eba\uff0c\u4e5f\u80fd\u6740\u4eba","novel_author":"\u4e09\u4e0a\u6a3d","novel_wordnumber":28563,"novel_uptime":"4 \u5c0f\u65f6\u524d","novel_type":"\u6c11\u56fd","novel_tag":"\u8650\u604b","novel_allclick":2129,"novel_process":1,"novel_allcoll":34,"novel_clock":0,"editor_msg":""}],
+                threesltName: "\u5173\u4e8e\u201c\u6c11\u56fd\u201d\u7684\u4f5c\u54c1",
+                domLoadStatus: {},
+                finishrecSwiper: null,
+                threesltSwiper: null,
+            },
+            mounted: function () {
+                this.getNovelUpdateList();
+                this.initFinishrecSwiper();
+                this.initThreesltSwiper();
+            },
+            methods: {
+                lock : function (novel) {  
+                    if(novel.novel_status == 1 && novel.novel_lock == 0 ) return false;
+                    layer.alert('该内容已被锁定或冻结，暂时无法查看哦！');
+                },
+                setRankingIndex: function (index, val) {
+                    this.$set(this.rankingIndex, index, val);
+                },
+                getNovelUpdateList: function () {
+                    var that = this;
+                    $.get("/novel/getUpdateList", {limit: 20, type_id: 1}, function (res) {
+                        if (res.code == 200) {
+                            that.novelUpdateList = res.data.list;
+                        }
+                    });
+                },
+                more: function (rid, index) {
+                    var that = this,
+                        date = 0;
+                    switch (that.rankingIndex[index]) {
+                        case 'day':
+                            date = 1;
+                            break;
+                    
+                        case 'latest_seven':
+                            date = 2;
+                            break;
+                    
+                        case 'latest_thirty':
+                            date = 3;
+                            break;
+                    
+                        case 'week':
+                            date = 4;
+                            break;
+                    
+                        case 'month':
+                            date = 5;
+                            break;
+                    
+                        case 'all':
+                            date = 8;
+                            break;
+                    
+                        default:
+                            break;
+                    }
+                    var href = '/home/ranking?tid='+ that.tid +'&id='+ rid +'&rankList=2&date=' + date;
+                    window.location.href = href;
+                },
+                getRandomRecList: function (key, tid, listVal, domId) {
+                    var that = this;
+
+                    if (that.domLoading(domId)) {
+                        $.ajax({
+                            url: '/index/getRandomRecList',
+                            type: 'GET',
+                            dataType: 'json',
+                            data: {
+                                key: key,
+                                tid: tid,
+                            },
+                        }).done(function (res) {
+                            if (res.code == 200) {
+
+                                if ('threeslt' === key) {
+                                    that.threesltSwiper.destroy()
+                                    that.$set(that, listVal, res.data.list);
+                                    that.$set(that, 'threesltName', res.data.name);
+                                    that.$nextTick(function () {
+                                        that.initThreesltSwiper()
+                                    })
+                                } else if ('finishrec' === key) {
+                                    that.finishrecSwiper.destroy()
+                                    that.$set(that, listVal, res.data.list);
+                                    that.$nextTick(function () {
+                                        that.initFinishrecSwiper()
+                                    })
+                                } else {
+                                    that.$set(that, listVal, res.data.list);
+                                }
+                            }
+                        }).fail(function () {
+                            domId && that.domLoading(domId, true, '系统繁忙！');
+                        }).always(function () {
+                            domId && that.domLoading(domId, false);
+                        });
+                    }
+                },
+                domLoading: function (domId, open, msg) {
+                    var res = false,
+                        html = msg ? '<span>' + msg + '</span>' : '<i class="layui-icon layui-anim layui-anim-rotate layui-anim-loop">&#xe63d;</i>',
+                        obj = $('#' + domId);
+                    if (false === open) {
+                        // 关闭加载
+                        this.domLoadStatus[domId] = false;
+                        obj.find('.cp-dom-loading').remove();
+                    } else {
+                        if (!this.domLoadStatus[domId]) {
+                            // 添加加载状态
+                            this.domLoadStatus[domId] = !msg;
+                            obj.css('position', 'relative').append('<div class="cp-dom-loading">' + html + '</div>');
+                            res = true;
+                        }
+                    }
+                    return res;
+                },
+                initThreesltSwiper: function () {
+                    this.threesltSwiper = new Swiper('#threesltList', {
+                        initialSlide: 1,
+                        autoplay: {
+                            disableOnInteraction: false,
+                        },
+                        loop: true,
+                        slidesPerView: 3,
+                        centeredSlides: true,
+                        watchSlidesProgress: true,
+                        pagination: {
+                            el: '.swiper-pagination',
+                            clickable: true,
+                        },
+                        on: {
+                            sliderMove: function () {
+                                var html = $('.cpThreesltItem_' + this.realIndex).html();
+                                $('#cpThreesltIndex').html(html);
+                            },
+                            slideChange: function () {
+                                var html = $('.cpThreesltItem_' + this.realIndex).html();
+                                $('#cpThreesltIndex').html(html);
+                            }
+                        }
+                    })
+                },
+                initFinishrecSwiper: function () {
+                    // 完结推荐
+                    this.finishrecSwiper = new Swiper('#finishrecList', {
+                        initialSlide: 1,
+                        autoplay: {
+                            disableOnInteraction: false,
+                        },
+                        loop: true,
+                        slidesPerView: 3,
+                        centeredSlides: true,
+                        watchSlidesProgress: true,
+                        pagination: {
+                            el: '.swiper-pagination',
+                            clickable: true,
+                        },
+                        on: {
+                            sliderMove: function () {
+                                var html = $('.cpDramarecItem_' + this.realIndex).html();
+                                $('#cpIndexDramarecIndex').html(html);
+                            },
+                            slideChange: function () {
+                                var html = $('.cpDramarecItem_' + this.realIndex).html();
+                                $('#cpIndexDramarecIndex').html(html);
+                            }
+                        }
+                    })
+                }
+            }
+        })
+    </script>
+<div class="cp-main-box cp-footer">
+    <div class="cp-footer-link" id="cpFooterLink">
+        <a href="/article/list/id/7">关于长佩</a>
+        <a href="/article/list/id/8">联系长佩</a>
+        <a href="http://weibo.com/2125010937">长佩微博</a>
+        <a href="/system/downloadApp">客户端</a>
+        <a href="javascript:feedback();">举报反馈</a>
+    </div>
+    <div class="cp-footer-copyright">
+        <span>北京长佩网络科技有限公司</span>
+        <span>增值电信业务经营许可证：京B2-20180244</span>
+        <span>ICP备案号： 京ICP备17046709号-2</span>
+        <span>网络文化经营许可证：京网文（2017）8697-992号</span>
+    </div>
+    <div class="cp-footer-declaration">
+        <p>用户投稿、上传、发布的任何内容（包括但不限于作品、评论、话题、图片等）均属用户个人行为，不代表本站的立场和观点；本站仅作为用户内容的上传存储平台，不承担任何责任。</p>
+        <p>请所有用户务必严格遵守国家互联网信息管理办法及相关规定，任何色情、暴力等违法违规内容本站均拒绝，一经发现，立即删除；情况严重的，将按本站管理制度从重处理。</p>
+        <p>如有内容违法违规或侵害他人合法权益，欢迎举报投诉，一经核实，立即删除。</p>
+    </div>
+    <div class="cp-footer-contact">
+        <span>联系电话：010-87889370，13011216690（周一至周五 9：00-17:30）</span>
+        <span>联系邮箱：services@cpwxw.net</span>
+        <span>联系地址：北京市丰台区名流未来大厦1008</span>
+    </div>
+</div>
+<div class="cp-feedback cp-hidden" id="cpFeedback">
+    <form class="layui-form">
+        <div class="layui-form-item">
+            <label class="layui-form-label">反馈类型</label>
+            <div class="layui-input-inline">
+                <select name="type" lay-verify="required">
+                                    <option value="1">产品BUG</option>
+                                    <option value="2">改进建议</option>
+                                    <option value="3">使用咨询</option>
+                                    <option value="4">充值问题</option>
+                                    <option value="5">账号问题</option>
+                                    <option value="6">作品问题</option>
+                                    <option value="7">其他问题</option>
+                                </select>
+            </div>
+        </div>
+        <div class="layui-form-item layui-form-text">
+            <label class="layui-form-label">问题描述</label>
+            <div class="layui-input-block">
+                <textarea name="desc" required lay-verify="required" placeholder="请输入内容" class="layui-textarea"></textarea>
+            </div>
+        </div>
+        <div class="layui-form-item">
+            <label class="layui-form-label">联系方式</label>
+            <div class="layui-input-inline">
+                <input type="text" name="contact" placeholder="请输入手机或邮箱" autocomplete="off" class="layui-input">
+            </div>
+            <div class="layui-form-mid layui-word-aux">选填</div>
+        </div>
+    </form>
+</div>
+<script>
+    var _hmt = _hmt || [];
+    (function(){
+
+                var hm = document.createElement("script");
+        hm.src = "https://hm.baidu.com/hm.js?179e79c99c79b8f8d8604043974a3a8b";
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(hm, s);
+        
+        if (/(iPhone|iPad|iPod|iOS|Android)/i.test(navigator.userAgent)) { //移动端
+            var pcHost = window.location.host;
+            var mHost = window.location.host.replace('www.', 'm.');
+            var mUrl = window.location.href.replace(pcHost, mHost);
+            var url = 'https://' + mHost + '/transfer/pc?url=' + encodeURIComponent(mUrl);
+            $('#cpFooterLink').append('<a href="' + url + '">触屏版</a>');
+        }
+    })();
+    
+    function feedback() {
+        if (!userInfo.show_uid) {
+            layer.alert('请先登录', function (index) {
+                layer.close(index);
+                loginModel();
+            });
+            return;
+        } else {
+            $('#cpFeedback form')[0].reset();
+            loginBox = layer.open({
+                type: 1,
+                title: '举报反馈',
+                shadeClose: false,
+                area: '450px',
+                btn: ['提交', '取消'],
+                skin: 'cp-visible',
+                content: $('#cpFeedback'),
+                yes: function (index) {
+                    loading = layer.load(2);
+                    $.ajax({
+                        url: '/user/feedback',
+                        type: 'POST',
+                        dataType: 'json',
+                        data: $('#cpFeedback form').serializeArray(),
+                    }).done(function (res) {
+                        commonCallBack(res, function () {
+                            layer.close(index);
+                        });
+                    }).fail(function () {
+                        console.log("error");
+                    }).always(function () {
+                        layer.close(loading);
+                    });
+                }
+            });
+        }
+    }
+
+    //冻结
+    function lock(){
+        layer.alert('该内容已被锁定或冻结，暂时无法查看哦！');
+    }
+    function frozen(){
+        layer.alert('该内容已被锁定或冻结，暂时无法查看哦！');
+    }
+    $('.cp-lock').click(function () {  
+        lock();
+    })
+    $('.cp-frozen').click(function () {  
+        lock();
+    })
+</script>
+</body>
